@@ -69,3 +69,20 @@ std::size_t InvertedIndex::getDocumentLength(std::size_t documentId)const
 		return 0;
 	}
 }
+
+std::vector<std::size_t> InvertedIndex::getDocumentIds(const std::string& token)const
+{
+	auto it = m_postings.find(token);
+
+	std::vector<std::size_t> docIds;
+
+	if (it != m_postings.end())
+	{
+		for (const auto& val : it->second)
+		{
+			docIds.push_back(val.first);
+		}
+	}
+	return docIds;
+
+}

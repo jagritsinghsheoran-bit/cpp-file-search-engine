@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include <cstddef>
 
 class InvertedIndex
@@ -18,4 +19,6 @@ public:
 	std::size_t getDocumentFrequency(const std::string& term)const;//How many documents contain a term
 
 	std::size_t getDocumentLength(std::size_t documentId)const;
+
+	std::vector<std::size_t> getDocumentIds(const std::string& token)const;//returns ID of all documents containing that term
 };

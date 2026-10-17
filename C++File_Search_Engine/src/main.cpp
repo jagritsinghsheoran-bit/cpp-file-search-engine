@@ -13,6 +13,7 @@
 #include <condition_variable>
 #include <filesystem>
 #include <fstream>
+#include <unordered_set>
 using std::cout;
 using std::cin;
 using std::endl;
@@ -35,25 +36,39 @@ int main()
 	std::cout << index.getTermFrequency("bird", 0) << '\n';
 	std::cout << index.getDocumentLength(0) << '\n';
 	*/
-
+	
 	std::filesystem::path directoryPath= R"(C:\Users\jagri\OneDrive\Desktop\SearchEngineFile)";
 	
 	DocumentScanner scanner;
-	std::vector<Document> documents = scanner.scan(directoryPath);
-
 	InvertedIndex index;
+
+	std::vector<Document> documents = scanner.scan(directoryPath);
 
 	for (std::size_t i=0; i < documents.size(); ++i)
 	{
 		index.addDocument(i, documents[i].text);
 	}
-	
 
-	std::cout << index.getTermFrequency("cars", 0) << '\n';
-	std::cout << index.getDocumentLength(0) << '\n';
-	std::cout << index.getTermFrequency("spaceship", 0) << '\n';
-	std::cout << index.getDocumentFrequency("cars") << '\n';
+	std::string query = "cars electric";
+	std::vector<std::string> testTokens{ tokenize(query) };
 
+	std::unordered_set<std::size_t>docIdSet;
+
+	for (const auto& val : testTokens)
+	{
+		std::vector<std::size_t>docIdVec = index.getDocumentIds(val);
+		for (const auto& val : docIdVec)
+		{
+			docIdSet.insert(val);
+		}
+	}
+	for (const auto& docId : docIdSet)
+	{
+		std::cout << "ID: " << docId << '\n';
+		std::cout << "File: "
+			<< documents[docId].path.filename().string()
+			<< "\n\n";
+	}
 	return 0;
 }
 
