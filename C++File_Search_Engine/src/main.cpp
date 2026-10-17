@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <fstream>
 #include <unordered_set>
+#include <utility>
 using std::cout;
 using std::cin;
 using std::endl;
@@ -27,17 +28,8 @@ using std::endl;
 int main()
 {
 	
-	/*
-	InvertedIndex index;
-
-	std::cout << index.addDocument(0, "cat dog cat") << '\n';
-	std::cout << index.addDocument(0, "bird fish") << '\n';
-
-	std::cout << index.getTermFrequency("cat", 0) << '\n';
-	std::cout << index.getTermFrequency("bird", 0) << '\n';
-	std::cout << index.getDocumentLength(0) << '\n';
-	*/
-	/*
+	
+	
 	std::filesystem::path directoryPath= R"(C:\Users\jagri\OneDrive\Desktop\SearchEngineFile)";
 	
 	DocumentScanner scanner;
@@ -63,26 +55,26 @@ int main()
 			docIdSet.insert(val);
 		}
 	}
+	
+	std::vector<std::pair<std::size_t, double>>scoreVec;
+	BM25Ranker ranker{ index };
 	for (const auto& docId : docIdSet)
 	{
-		std::cout << "ID: " << docId << '\n';
-		std::cout << "File: "
-			<< documents[docId].path.filename().string()
-			<< "\n\n";
+		double score = ranker.scorer(docId, query);
+		scoreVec.push_back({ docId,score });
 	}
-	*/
 
-	InvertedIndex index;
+	std::sort(scoreVec.begin(), scoreVec.end(), [](const auto& a, const auto& b) { if (a.second != b.second)
+		return a.second > b.second;
+	return a.first < b.first; });
 
-	index.addDocument(0, "spaceship");
-	index.addDocument(1, "spaceship spaceship spaceship");
-	index.addDocument(2, "car bus train plane");
+	for (const auto& val : scoreVec)
+	{
+		cout << "Doc ID : " << val.first << "\n";
+		cout << "BM 25 Score : " << val.second << "\n";
+		cout << "File name : " << documents[val.first].path.filename() << "\n";
+	}
 
-	BM25Ranker ranker{ index };
-
-	std::cout << ranker.scorer(0, "spaceship") << '\n';
-	std::cout << ranker.scorer(1, "spaceship") << '\n';
-	std::cout << ranker.scorer(2, "spaceship") << '\n';
 	return 0;
 }
 
