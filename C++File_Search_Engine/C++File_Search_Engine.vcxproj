@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\SearchEngine.cpp" />
     <ClCompile Include="src\BM25Ranker.cpp" />
     <ClCompile Include="src\DocumentScanner.cpp" />
     <ClCompile Include="src\InvertedIndex.cpp" />
@@ -29,6 +30,7 @@
     <ClInclude Include="include\BM25Ranker.h" />
     <ClInclude Include="include\DocumentScanner.h" />
     <ClInclude Include="include\InvertedIndex.h" />
+    <ClInclude Include="include\SearchEngine.h" />
     <ClInclude Include="include\Tokenizer.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
