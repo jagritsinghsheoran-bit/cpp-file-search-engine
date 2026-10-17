@@ -33,6 +33,9 @@
     <ClCompile Include="..\SearchEngine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="benchmarks\Benchmark.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Tokenizer.h">
@@ -50,5 +53,8 @@
     <ClInclude Include="include\SearchEngine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="benchmarks\results.csv" />
   </ItemGroup>
 </Project>

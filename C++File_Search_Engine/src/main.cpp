@@ -11,7 +11,7 @@ using std::endl;
 
 
 #include "SearchEngine.h"
-
+/*
 void runQueries(const SearchEngine& engine,const std::vector<std::string>& queries)
 {
     for (const auto& query : queries)
@@ -57,3 +57,4 @@ int main()
 	return 0;
 }
 
+*/
