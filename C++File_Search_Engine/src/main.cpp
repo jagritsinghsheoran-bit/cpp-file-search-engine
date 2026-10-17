@@ -22,6 +22,7 @@ using std::endl;
 #include "Tokenizer.h"
 #include "InvertedIndex.h"
 #include "DocumentScanner.h"
+#include "BM25Ranker.h"
 
 int main()
 {
@@ -36,7 +37,7 @@ int main()
 	std::cout << index.getTermFrequency("bird", 0) << '\n';
 	std::cout << index.getDocumentLength(0) << '\n';
 	*/
-	
+	/*
 	std::filesystem::path directoryPath= R"(C:\Users\jagri\OneDrive\Desktop\SearchEngineFile)";
 	
 	DocumentScanner scanner;
@@ -69,6 +70,19 @@ int main()
 			<< documents[docId].path.filename().string()
 			<< "\n\n";
 	}
+	*/
+
+	InvertedIndex index;
+
+	index.addDocument(0, "spaceship");
+	index.addDocument(1, "spaceship spaceship spaceship");
+	index.addDocument(2, "car bus train plane");
+
+	BM25Ranker ranker{ index };
+
+	std::cout << ranker.scorer(0, "spaceship") << '\n';
+	std::cout << ranker.scorer(1, "spaceship") << '\n';
+	std::cout << ranker.scorer(2, "spaceship") << '\n';
 	return 0;
 }
 

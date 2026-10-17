@@ -86,3 +86,9 @@ std::vector<std::size_t> InvertedIndex::getDocumentIds(const std::string& token)
 	return docIds;
 
 }
+
+std::size_t InvertedIndex::getDocumentCount()const
+{
+	return m_documentLengths.size();
+}
+

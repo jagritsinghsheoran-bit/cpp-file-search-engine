@@ -21,4 +21,6 @@ public:
 	std::size_t getDocumentLength(std::size_t documentId)const;
 
 	std::vector<std::size_t> getDocumentIds(const std::string& token)const;//returns ID of all documents containing that term
+
+	std::size_t getDocumentCount()const;
 };

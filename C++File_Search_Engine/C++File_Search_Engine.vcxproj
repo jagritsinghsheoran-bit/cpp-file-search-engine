@@ -19,12 +19,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\BM25Ranker.cpp" />
     <ClCompile Include="src\DocumentScanner.cpp" />
     <ClCompile Include="src\InvertedIndex.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Tokenizer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\BM25Ranker.h" />
     <ClInclude Include="include\DocumentScanner.h" />
     <ClInclude Include="include\InvertedIndex.h" />
     <ClInclude Include="include\Tokenizer.h" />
