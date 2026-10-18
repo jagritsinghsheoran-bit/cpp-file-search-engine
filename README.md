@@ -46,35 +46,30 @@ The project uses no third-party libraries — only the C++ standard library — 
 | `SearchEngine` | `SearchEngine.h/.cpp` | Owns the documents, the index and the ranker. Its constructor runs the indexing pipeline; `search()` runs the query pipeline. |
 | CLI | `main.cpp` | Builds a `SearchEngine` for a folder, reads queries from standard input, and prints ranked results. |
 
+**Indexing** runs once, in the `SearchEngine` constructor:
+
 ```mermaid
-flowchart LR
-    subgraph IDX["Indexing: SearchEngine constructor"]
-        direction TB
-        A["Corpus folder<br/>*.txt files"] --> B["DocumentScanner::scan<br/>sort paths, read every file"]
-        B --> C["Documents in memory<br/>ID = position in sorted order"]
-        C --> P{{"Split IDs into 12 contiguous ranges<br/>N / 12 each, last range takes the remainder"}}
-        P --> W1["Worker 1<br/>tokenize + addDocument"]
-        P --> W2["Workers 2 to 11<br/>tokenize + addDocument"]
-        P --> W12["Worker 12<br/>tokenize + addDocument"]
-        W1 --> L1["Local index 1"]
-        W2 --> L2["Local indexes 2 to 11"]
-        W12 --> L12["Local index 12"]
-        L1 & L2 & L12 --> J["Join all 12 threads"]
-        J --> M["mergeFrom each local index<br/>single thread"]
-        M --> G[("Global InvertedIndex<br/>term to doc ID and frequency<br/>doc ID to length")]
-    end
+flowchart TB
+    A["Corpus folder<br/>*.txt files"] --> B["DocumentScanner::scan<br/>sort paths, read every file,<br/>ID = position in sorted order"]
+    B --> P{{"Split IDs into 12 ranges<br/>N / 12 each; the last<br/>takes the remainder"}}
+    P --> W1["Worker 1<br/>tokenize + addDocument<br/>into its own InvertedIndex"]
+    P --> W2["Workers 2 to 11<br/>same, one index each"]
+    P --> W12["Worker 12<br/>tokenize + addDocument<br/>into its own InvertedIndex"]
+    W1 --> M["Join all 12 threads,<br/>then mergeFrom<br/>on one thread"]
+    W2 --> M
+    W12 --> M
+    M --> G[("Global InvertedIndex<br/>term → doc ID → frequency<br/>doc ID → length")]
+```
 
-    subgraph SRCH["Search: SearchEngine::search"]
-        direction TB
-        Q["Query string"] --> T["tokenize"]
-        T --> U["Candidate set<br/>union of posting lists"]
-        U --> S["BM25Ranker::scorer<br/>for every candidate"]
-        S --> R["Sort by score descending<br/>ties by doc ID ascending"]
-        R --> O["SearchResult list<br/>file name, ID, score"]
-    end
+**Search** runs for every query, in `SearchEngine::search`:
 
-    G -.-> U
-    G -.-> S
+```mermaid
+flowchart TB
+    Q["Query string"] --> T["tokenize"]
+    T --> U["Candidate documents<br/>union of posting lists"]
+    U --> S["BM25 score<br/>for each candidate<br/>k1 = 1.2, b = 0.75"]
+    S --> R["Sort by score<br/>ties: lower doc ID first"]
+    R --> O["Ranked SearchResult list"]
 ```
 
 ## Indexing pipeline
@@ -210,7 +205,7 @@ Each worker count was measured with the commit that introduced it. Every multi-w
 | 8 | 2.3858 | 2.3575 – 2.4132 | 41.92 | 1.36× |
 | **12 (current)** | **2.2973** | **2.2464 – 2.3174** | **43.53** | **1.41×** |
 
-Speedup is the sequential median divided by the configuration's median. Every individual run is listed in [`benchmarks/results.csv`](C++File_Search_Engine/benchmarks/results.csv), with console screenshots in [`benchmarks/BenchmarkScreenshots`](C++File_Search_Engine/benchmarks/BenchmarkScreenshots).
+Speedup is the sequential median divided by the configuration's median. Every individual run is listed in [`benchmarks/results.csv`](C++File_Search_Engine/benchmarks/results.csv), with a console screenshot of each run in [`benchmarks/screenshots`](C++File_Search_Engine/benchmarks/screenshots) (one folder per configuration, `run1.png`–`run5.png` matching the CSV run numbers).
 
 ### Interpretation
 
@@ -260,7 +255,9 @@ cpp-file-search-engine/
     └── benchmarks/
         ├── Benchmark.cpp                   Indexing-time benchmark (commented out by default)
         ├── results.csv                     All recorded runs
-        └── BenchmarkScreenshots/           Console output of every run
+        └── screenshots/                    Console output of every run
+            ├── sequential/                 run1.png … run5.png
+            └── workers-02/ … workers-12/   run1.png … run5.png
 ```
 
 ## Limitations
