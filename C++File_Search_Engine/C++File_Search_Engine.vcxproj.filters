@@ -30,7 +30,7 @@
     <ClCompile Include="src\BM25Ranker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\SearchEngine.cpp">
+    <ClCompile Include="src\SearchEngine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="benchmarks\Benchmark.cpp">
