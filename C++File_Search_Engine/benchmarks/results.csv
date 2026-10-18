@@ -19,3 +19,8 @@ run,configuration,threads,corpus_path,documents,corpus_size_mib,indexing_time_se
 3,Release,8,C:\SearchEngineBenchmarkCorpus,10000,100.0072,2.3773,4206.4053,42.0671,warm-cache-likely,official,multithreaded(8)
 4,Release,8,C:\SearchEngineBenchmarkCorpus,10000,100.0072,2.4132,4143.8058,41.4410,warm-cache-likely,official,multithreaded(8)
 5,Release,8,C:\SearchEngineBenchmarkCorpus,10000,100.0072,2.4093,4150.5952,41.5089,warm-cache-likely,official,multithreaded(8)
+1,Release,12,C:\SearchEngineBenchmarkCorpus,10000,100.0072,2.2464,4451.5325,44.5185,warm-cache-likely,official,multithreaded(12)
+2,Release,12,C:\SearchEngineBenchmarkCorpus,10000,100.0072,2.3174,4315.2670,43.1558,warm-cache-likely,official,multithreaded(12)
+3,Release,12,C:\SearchEngineBenchmarkCorpus,10000,100.0072,2.2973,4352.9088,43.5322,warm-cache-likely,official,multithreaded(12)
+4,Release,12,C:\SearchEngineBenchmarkCorpus,10000,100.0072,2.2925,4362.0555,43.6237,warm-cache-likely,official,multithreaded(12)
+5,Release,12,C:\SearchEngineBenchmarkCorpus,10000,100.0072,2.3155,4318.8006,43.1911,warm-cache-likely,official,multithreaded(12)

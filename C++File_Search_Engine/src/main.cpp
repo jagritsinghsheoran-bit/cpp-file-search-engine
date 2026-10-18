@@ -4,48 +4,45 @@
 #include <filesystem>
 #include <cassert>
 
+#include "SearchEngine.h"
 
 using std::cout;
 using std::cin;
-using std::endl;
+using std::string;
 
-/*
-#include "SearchEngine.h"
-
-void runQueries(const SearchEngine& engine,const std::vector<std::string>& queries)
+void runQueries(const SearchEngine& engine,
+    const std::vector<string>& queries)
 {
     for (const auto& query : queries)
     {
-        std::cout << "\nQuery: \"" << query << "\"\n";
+        cout << "\nQuery: \"" << query << "\"\n";
 
-        std::vector<SearchResult> results = engine.search(query);
+        const std::vector<SearchResult> results = engine.search(query);
 
         if (results.empty())
         {
-            std::cout << "No results found.\n";
+            cout << "No results found.\n";
             continue;
         }
 
         for (const auto& result : results)
-        {
-            std::cout << result;
-        }
+            cout << result;
     }
-
 }
-*/
-/*
+
 int main()
 {
-    
-	std::filesystem::path directoryPath= R"(C:\Users\jagri\OneDrive\Desktop\SearchEngineFile)";
-	SearchEngine engine{ directoryPath };
+    const std::filesystem::path directoryPath =
+        R"(C:\Users\jagri\OneDrive\Desktop\SearchEngineFile)";
 
-    std::vector<std::string> queries = {};
-    std::string query="";
+    SearchEngine engine{ directoryPath };
+
+    std::vector<string> queries;
+    string query;
+
     cout << "Enter queries (type 'exit' to finish):\n";
 
-    while (std::getline(std::cin, query))
+    while (std::getline(cin, query))
     {
         if (query == "exit")
             break;
@@ -54,12 +51,6 @@ int main()
     }
 
     runQueries(engine, queries);
-	return 0;
+
+    return 0;
 }
-*/
-
-
-
-
-
-
