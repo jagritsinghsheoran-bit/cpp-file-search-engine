@@ -16,10 +16,10 @@ SearchEngine::SearchEngine(const std::filesystem::path& directoryPath)
     DocumentScanner scanner;
     m_documents = scanner.scan(directoryPath);
 
-    std::array<InvertedIndex, 8> workerIndexes;
+    std::array<InvertedIndex, 12> workerIndexes;
 
     const std::size_t documentCount = m_documents.size();
-    const std::size_t documentsPerWorker = documentCount / 8;
+    const std::size_t documentsPerWorker = documentCount / 12;
 
     const std::size_t p1 = documentsPerWorker;
     const std::size_t p2 = 2 * documentsPerWorker;
@@ -28,6 +28,10 @@ SearchEngine::SearchEngine(const std::filesystem::path& directoryPath)
     const std::size_t p5 = 5 * documentsPerWorker;
     const std::size_t p6 = 6 * documentsPerWorker;
     const std::size_t p7 = 7 * documentsPerWorker;
+    const std::size_t p8 = 8 * documentsPerWorker;
+    const std::size_t p9 = 9 * documentsPerWorker;
+    const std::size_t p10 = 10 * documentsPerWorker;
+    const std::size_t p11 = 11 * documentsPerWorker;
 
     std::jthread j1([this, &workerIndexes, &p1]()
         {
@@ -71,10 +75,34 @@ SearchEngine::SearchEngine(const std::filesystem::path& directoryPath)
                 workerIndexes[6].addDocument(i, m_documents[i].text);
         });
 
-    std::jthread j8([this, &workerIndexes, &p7, &documentCount]()
+    std::jthread j8([this, &workerIndexes, &p7, &p8]()
         {
-            for (std::size_t i = p7; i < documentCount; ++i)
+            for (std::size_t i = p7; i < p8; ++i)
                 workerIndexes[7].addDocument(i, m_documents[i].text);
+        });
+
+    std::jthread j9([this, &workerIndexes, &p8, &p9]()
+        {
+            for (std::size_t i = p8; i < p9; ++i)
+                workerIndexes[8].addDocument(i, m_documents[i].text);
+        });
+
+    std::jthread j10([this, &workerIndexes, &p9, &p10]()
+        {
+            for (std::size_t i = p9; i < p10; ++i)
+                workerIndexes[9].addDocument(i, m_documents[i].text);
+        });
+
+    std::jthread j11([this, &workerIndexes, &p10, &p11]()
+        {
+            for (std::size_t i = p10; i < p11; ++i)
+                workerIndexes[10].addDocument(i, m_documents[i].text);
+        });
+
+    std::jthread j12([this, &workerIndexes, &p11, &documentCount]()
+        {
+            for (std::size_t i = p11; i < documentCount; ++i)
+                workerIndexes[11].addDocument(i, m_documents[i].text);
         });
 
     j1.join();
@@ -85,6 +113,10 @@ SearchEngine::SearchEngine(const std::filesystem::path& directoryPath)
     j6.join();
     j7.join();
     j8.join();
+    j9.join();
+    j10.join();
+    j11.join();
+    j12.join();
 
     for (const auto& workerIndex : workerIndexes)
         m_index.mergeFrom(workerIndex);
