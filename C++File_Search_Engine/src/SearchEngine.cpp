@@ -89,3 +89,46 @@ SearchEngine::SearchEngine(const std::filesystem::path& directoryPath)
     for (const auto& workerIndex : workerIndexes)
         m_index.mergeFrom(workerIndex);
 }
+
+std::vector<SearchResult> SearchEngine::search(const std::string& query) const
+{
+    std::vector<std::string> testTokens{ tokenize(query) };
+
+    std::unordered_set<std::size_t> docIdSet;
+
+    for (const auto& token : testTokens)
+    {
+        std::vector<std::size_t> docIdVec = m_index.getDocumentIds(token);
+
+        for (const auto& docId : docIdVec)
+        {
+            docIdSet.insert(docId);
+        }
+    }
+
+    std::vector<std::pair<std::size_t, double>> idScoreVec;
+
+    for (const auto& docId : docIdSet)
+    {
+        idScoreVec.push_back({ docId, m_ranker.scorer(docId, query) });
+    }
+
+    std::sort(idScoreVec.begin(), idScoreVec.end(),
+        [](const auto& a, const auto& b)
+        {
+            if (a.second != b.second)
+                return a.second > b.second;
+
+            return a.first < b.first;
+        });
+
+    std::vector<SearchResult> resultVec;
+
+    for (const auto& val : idScoreVec)
+    {
+        resultVec.push_back(
+            { val.first, val.second, m_documents[val.first].path });
+    }
+
+    return resultVec;
+}
