@@ -1,6 +1,11 @@
-run,configuration,corpus_path,documents,corpus_size_mib,indexing_time_seconds,documents_per_second,mib_per_second,cache_condition,run_status,notes
-1,Release,C:\SearchEngineBenchmarkCorpus,10000,100.0072,3.3270,3005.7459,30.0596,warm-cache-likely,official,
-2,Release,C:\SearchEngineBenchmarkCorpus,10000,100.0072,3.2310,3095.0113,30.9523,warm-cache-likely,official,
-3,Release,C:\SearchEngineBenchmarkCorpus,10000,100.0072,3.2760,3052.5382,30.5276,warm-cache-likely,official,
-4,Release,C:\SearchEngineBenchmarkCorpus,10000,100.0072,3.2403,3086.1010,30.8632,warm-cache-likely,official,
-5,Release,C:\SearchEngineBenchmarkCorpus,10000,100.0072,3.2078,3117.3801,31.1760,warm-cache-likely,official,
+run,configuration,threads,corpus_path,documents,corpus_size_mib,indexing_time_seconds,documents_per_second,mib_per_second,cache_condition,run_status,notes
+1,Release,1,C:\SearchEngineBenchmarkCorpus,10000,100.0072,3.3270,3005.7459,30.0596,warm-cache-likely,official,sequential
+2,Release,1,C:\SearchEngineBenchmarkCorpus,10000,100.0072,3.2310,3095.0113,30.9523,warm-cache-likely,official,sequential
+3,Release,1,C:\SearchEngineBenchmarkCorpus,10000,100.0072,3.2760,3052.5382,30.5276,warm-cache-likely,official,sequential
+4,Release,1,C:\SearchEngineBenchmarkCorpus,10000,100.0072,3.2403,3086.1010,30.8632,warm-cache-likely,official,sequential
+5,Release,1,C:\SearchEngineBenchmarkCorpus,10000,100.0072,3.2078,3117.3801,31.1760,warm-cache-likely,official,sequential
+1,Release,2,C:\SearchEngineBenchmarkCorpus,10000,100.0072,3.1928,3132.0606,31.3229,warm-cache-likely,official,multithreaded(2)
+2,Release,2,C:\SearchEngineBenchmarkCorpus,10000,100.0072,3.2399,3086.5571,30.8678,warm-cache-likely,official,multithreaded(2)
+3,Release,2,C:\SearchEngineBenchmarkCorpus,10000,100.0072,3.1880,3136.7799,31.3701,warm-cache-likely,official,multithreaded(2)
+4,Release,2,C:\SearchEngineBenchmarkCorpus,10000,100.0072,3.1779,3146.7286,31.4696,warm-cache-likely,official,multithreaded(2)
+5,Release,2,C:\SearchEngineBenchmarkCorpus,10000,100.0072,3.1608,3163.7379,31.6397,warm-cache-likely,official,multithreaded(2)

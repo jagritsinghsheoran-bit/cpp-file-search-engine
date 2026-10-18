@@ -1,5 +1,9 @@
 #include <algorithm>
 #include <unordered_set>
+#include <chrono>
+#include <iostream>
+#include <thread>
+#include <array>
 #include "Tokenizer.h"
 #include "SearchEngine.h"
 
@@ -7,14 +11,44 @@
 SearchEngine::SearchEngine(const std::filesystem::path& directoryPath)
 	:m_ranker{ m_index }
 {
+	//using clock = std::chrono::steady_clock;
+
 	DocumentScanner scanner;
 
-	 m_documents = scanner.scan(directoryPath);
+	//const auto scanStart = clock::now();
+	m_documents = scanner.scan(directoryPath);
+	//const auto scanEnd = clock::now();
 
-	for (std::size_t i = 0; i < m_documents.size(); ++i)
+
+	std::array<InvertedIndex, 2>workerIndexes;
+
+	const std::size_t documentCount = m_documents.size();
+	const std::size_t midPoint = documentCount / 2;
+
+	//const auto indexStart = clock::now();
+	std::jthread j1([ &midPoint, this, &workerIndexes]() {for (std::size_t i = 0; i < midPoint; i++)
 	{
-		m_index.addDocument(i, m_documents[i].text);
-	}
+		workerIndexes[0].addDocument(i, m_documents[i].text);
+	}});
+
+	std::jthread j2([&documentCount, &midPoint, this, &workerIndexes]() {for (std::size_t i = midPoint; i < documentCount; i++)
+	{
+		workerIndexes[1].addDocument(i, m_documents[i].text);
+	}});
+	
+	j1.join();
+	j2.join();
+
+	m_index.mergeFrom(workerIndexes[0]);
+	m_index.mergeFrom(workerIndexes[1]);
+
+	//const auto indexEnd = clock::now();
+
+	//const std::chrono::duration<double> scanTime = scanEnd - scanStart;
+	//const std::chrono::duration<double> indexTime = indexEnd - indexStart;
+	//std::cout << "Unique terms: " << m_index.getUniqueTermCount() << '\n';
+	//std::cout << "Scanning time: " << scanTime.count() << " seconds\n";
+	//std::cout << "Index construction time: " << indexTime.count() << " seconds\n";
 
 }
 

@@ -49,3 +49,4 @@ int main()
     std::cout << "MiB/sec: " << mib / seconds << '\n';
     std::cout << "Indexing time: "<< elapsed.count() << " seconds\n";
 }
+

@@ -1,25 +1,42 @@
+#include <chrono>
+#include <iostream>
+
 #include "InvertedIndex.h"
 #include "Tokenizer.h"
 
 
 
+
 bool InvertedIndex::addDocument(std::size_t documentId, const std::string& text)
 {
+	
+
 	auto it = m_documentLengths.find(documentId);
 	if (it != m_documentLengths.end())
 	{
 		return false;
 	}
+	
 	std::vector<std::string>tokens= tokenize(text) ;
+	
 
 	m_documentLengths[documentId] = tokens.size();
+	
 
 	for (const auto& token : tokens)
 	{
 		m_postings[token][documentId]++;
 	}
+	
 	return true;
 }
+
+
+std::size_t InvertedIndex::getUniqueTermCount() const
+{
+	return m_postings.size();
+}
+
 
 std::size_t InvertedIndex::getTermFrequency(const std::string& term,std::size_t documentId)const
 {
@@ -92,3 +109,19 @@ std::size_t InvertedIndex::getDocumentCount()const
 	return m_documentLengths.size();
 }
 
+void InvertedIndex::mergeFrom(const InvertedIndex& other)
+{
+	for (const auto& val : other.m_documentLengths)
+	{
+		m_documentLengths.insert(val);
+	}
+
+	for (const auto& [term, workerPostings] : other.m_postings)
+	{
+		for (const auto& val : workerPostings)
+		{
+			m_postings[term].insert(val);
+		}
+	}
+
+}

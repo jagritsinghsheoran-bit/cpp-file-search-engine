@@ -2,16 +2,16 @@
 #include <string>
 #include <vector>
 #include <filesystem>
-
+#include <cassert>
 
 
 using std::cout;
 using std::cin;
 using std::endl;
 
-
-#include "SearchEngine.h"
 /*
+#include "SearchEngine.h"
+
 void runQueries(const SearchEngine& engine,const std::vector<std::string>& queries)
 {
     for (const auto& query : queries)
@@ -33,9 +33,11 @@ void runQueries(const SearchEngine& engine,const std::vector<std::string>& queri
     }
 
 }
-
+*/
+/*
 int main()
 {
+    
 	std::filesystem::path directoryPath= R"(C:\Users\jagri\OneDrive\Desktop\SearchEngineFile)";
 	SearchEngine engine{ directoryPath };
 
@@ -52,9 +54,12 @@ int main()
     }
 
     runQueries(engine, queries);
-    
-
 	return 0;
 }
-
 */
+
+
+
+
+
+
