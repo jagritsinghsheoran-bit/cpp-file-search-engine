@@ -9,7 +9,7 @@
 using std::cout;
 using std::cin;
 using std::string;
-/*
+
 void runQueries(const SearchEngine& engine,
     const std::vector<string>& queries)
 {
@@ -54,4 +54,4 @@ int main()
 
     return 0;
 }
-*/
+

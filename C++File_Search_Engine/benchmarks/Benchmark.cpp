@@ -6,7 +6,7 @@
 #include <utility>
 
 #include "SearchEngine.h"
-
+/*
 std::pair<std::size_t, std::uintmax_t> getCorpusStats(const std::filesystem::path& directoryPath)
 {
     std::size_t documentCount = 0;
@@ -49,4 +49,4 @@ int main()
     std::cout << "MiB/sec: " << mib / seconds << '\n';
     std::cout << "Indexing time: "<< elapsed.count() << " seconds\n";
 }
-
+*/

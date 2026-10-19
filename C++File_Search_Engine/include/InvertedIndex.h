@@ -31,7 +31,6 @@ public:
 
 	double getAverageDocumentLength()const;
 
-
 	void mergeFrom(const InvertedIndex& other);
 };
 

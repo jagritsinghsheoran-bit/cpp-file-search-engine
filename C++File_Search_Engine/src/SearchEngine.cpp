@@ -118,7 +118,7 @@ SearchEngine::SearchEngine(const std::filesystem::path& directoryPath)
     j11.join();
     j12.join();
 
-    for (const auto& workerIndex : workerIndexes)
+    for ( auto& workerIndex : workerIndexes)
         m_index.mergeFrom(workerIndex);
 }
 
