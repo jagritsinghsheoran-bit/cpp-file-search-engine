@@ -1,5 +1,5 @@
 #include "BM25Ranker.h"
-#include "InvertedIndex.h";
+#include "InvertedIndex.h"
 #include "Tokenizer.h"
 #include <cmath>
 #include <unordered_set>
@@ -11,19 +11,10 @@ BM25Ranker::BM25Ranker(const InvertedIndex& index)
 {
 
 }
+
 double BM25Ranker::avgDocLength()const
 {
-	std::size_t totalDocuments = m_index.getDocumentCount();
-	std::size_t sum = 0;
-	for (std::size_t i = 0; i < m_index.getDocumentCount(); i++)
-	{
-		sum += m_index.getDocumentLength(i);
-	}
-	if (totalDocuments == 0)
-	{
-		return 0.0;
-	}
-	return static_cast<double>(sum) / totalDocuments;
+	return m_index.getAverageDocumentLength();
 }
 double BM25Ranker::inverseDocumentFrequency(const std::string& term)const
 {

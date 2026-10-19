@@ -21,6 +21,8 @@ bool InvertedIndex::addDocument(std::size_t documentId, const std::string& text)
 	
 
 	m_documentLengths[documentId] = tokens.size();
+	m_totalTokenCount += tokens.size();
+
 	
 
 	for (const auto& token : tokens)
@@ -30,7 +32,14 @@ bool InvertedIndex::addDocument(std::size_t documentId, const std::string& text)
 	
 	return true;
 }
-
+double InvertedIndex::getAverageDocumentLength()const
+{
+	if (m_documentLengths.empty())
+	{
+		return 0.0;
+	}
+	return static_cast<double>(m_totalTokenCount) / static_cast<double>(m_documentLengths.size());
+}
 
 std::size_t InvertedIndex::getUniqueTermCount() const
 {

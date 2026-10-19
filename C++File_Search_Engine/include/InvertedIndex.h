@@ -11,10 +11,9 @@ private:
 	std::unordered_map<std::string, std::unordered_map<std::size_t, std::size_t>>m_postings;//For every term, store the document IDs containing it and the number of occurrences in each document.
 
 	std::unordered_map<std::size_t, std::size_t>m_documentLengths;//document id and no of tokens in it
+	std::size_t m_totalTokenCount{ 0 };
 
 public:
-	double getTotalTokenizeSeconds() const;
-	double getTotalPostingInsertionSeconds() const;
 
 	std::size_t getUniqueTermCount() const;
 	
@@ -30,6 +29,7 @@ public:
 
 	std::size_t getDocumentCount()const;
 
+	double getAverageDocumentLength()const;
 
 
 	void mergeFrom(const InvertedIndex& other);
