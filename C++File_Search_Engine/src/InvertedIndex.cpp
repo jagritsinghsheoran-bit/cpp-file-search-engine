@@ -122,7 +122,10 @@ void InvertedIndex::mergeFrom(const InvertedIndex& other)
 {
 	for (const auto& val : other.m_documentLengths)
 	{
-		m_documentLengths.insert(val);
+		if (m_documentLengths.insert(val).second)
+		{
+			m_totalTokenCount += val.second;
+		}
 	}
 
 	for (const auto& [term, workerPostings] : other.m_postings)
