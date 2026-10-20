@@ -3,7 +3,7 @@
 #include "Tokenizer.h"
 #include <cmath>
 #include <unordered_set>
-#include <algorithm>
+
 
 
 BM25Ranker::BM25Ranker(const InvertedIndex& index)

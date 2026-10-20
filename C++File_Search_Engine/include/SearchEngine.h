@@ -34,4 +34,5 @@ private:
 public:
 	SearchEngine(const std::filesystem::path& directoryPath);
 	std::vector<SearchResult> search(const std::string& query)const;
+	const InvertedIndex& getIndex() const { return m_index; }
 };

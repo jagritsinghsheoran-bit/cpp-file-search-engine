@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Cli.cpp" />
     <ClCompile Include="src\SearchEngine.cpp" />
     <ClCompile Include="benchmarks\Benchmark.cpp" />
     <ClCompile Include="src\BM25Ranker.cpp" />
@@ -29,6 +30,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\BM25Ranker.h" />
+    <ClInclude Include="include\Cli.h" />
     <ClInclude Include="include\DocumentScanner.h" />
     <ClInclude Include="include\InvertedIndex.h" />
     <ClInclude Include="include\SearchEngine.h" />
