@@ -2,6 +2,9 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <chrono>
+#include <format>
+#include <filesystem>
 namespace
 {
     // Counts .txt files and their total size; returns {0, 0} if the folder can't be read

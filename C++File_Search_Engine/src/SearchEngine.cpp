@@ -6,6 +6,7 @@
 #include <array>
 #include "Tokenizer.h"
 #include "SearchEngine.h"
+#include <atomic>
 
 
 
@@ -33,78 +34,161 @@ SearchEngine::SearchEngine(const std::filesystem::path& directoryPath)
     const std::size_t p10 = 10 * documentsPerWorker;
     const std::size_t p11 = 11 * documentsPerWorker;
 
-    std::jthread j1([this, &workerIndexes, &p1]()
+    std::atomic<std::size_t>progress{ 0 };
+
+    
+
+
+    std::jthread j1([this, &workerIndexes, &p1,&progress]()
         {
             for (std::size_t i = 0; i < p1; ++i)
+            {
                 workerIndexes[0].addDocument(i, m_documents[i].text);
+                progress.fetch_add(1, std::memory_order_relaxed);
+            }
+           
+                
         });
 
-    std::jthread j2([this, &workerIndexes, &p1, &p2]()
+    std::jthread j2([this, &workerIndexes, &p1, &p2,&progress]()
         {
             for (std::size_t i = p1; i < p2; ++i)
+            {
                 workerIndexes[1].addDocument(i, m_documents[i].text);
+                progress.fetch_add(1, std::memory_order_relaxed);
+            }
+            
+                
         });
 
-    std::jthread j3([this, &workerIndexes, &p2, &p3]()
+    std::jthread j3([this, &workerIndexes, &p2, &p3,&progress]()
         {
             for (std::size_t i = p2; i < p3; ++i)
+            {
                 workerIndexes[2].addDocument(i, m_documents[i].text);
+                progress.fetch_add(1, std::memory_order_relaxed);
+            }
+            
         });
 
-    std::jthread j4([this, &workerIndexes, &p3, &p4]()
+    std::jthread j4([this, &workerIndexes, &p3, &p4,&progress]()
         {
             for (std::size_t i = p3; i < p4; ++i)
+            {
                 workerIndexes[3].addDocument(i, m_documents[i].text);
+                progress.fetch_add(1, std::memory_order_relaxed);
+            }
+            
         });
 
-    std::jthread j5([this, &workerIndexes, &p4, &p5]()
+    std::jthread j5([this, &workerIndexes, &p4, &p5,&progress]()
         {
             for (std::size_t i = p4; i < p5; ++i)
+            {
                 workerIndexes[4].addDocument(i, m_documents[i].text);
+                progress.fetch_add(1, std::memory_order_relaxed);
+            }
+            
+                
         });
 
-    std::jthread j6([this, &workerIndexes, &p5, &p6]()
+    std::jthread j6([this, &workerIndexes, &p5, &p6,&progress]()
         {
             for (std::size_t i = p5; i < p6; ++i)
+            {
                 workerIndexes[5].addDocument(i, m_documents[i].text);
+                progress.fetch_add(1, std::memory_order_relaxed);
+            }
+            
+                
         });
 
-    std::jthread j7([this, &workerIndexes, &p6, &p7]()
+    std::jthread j7([this, &workerIndexes, &p6, &p7, &progress]()
         {
             for (std::size_t i = p6; i < p7; ++i)
+            {
                 workerIndexes[6].addDocument(i, m_documents[i].text);
+                progress.fetch_add(1, std::memory_order_relaxed);
+            }
+            
+                
         });
 
-    std::jthread j8([this, &workerIndexes, &p7, &p8]()
+    std::jthread j8([this, &workerIndexes, &p7, &p8,&progress]()
         {
             for (std::size_t i = p7; i < p8; ++i)
+            {
                 workerIndexes[7].addDocument(i, m_documents[i].text);
+                progress.fetch_add(1, std::memory_order_relaxed);
+            }
+            
+                
         });
 
-    std::jthread j9([this, &workerIndexes, &p8, &p9]()
+    std::jthread j9([this, &workerIndexes, &p8, &p9,&progress]()
         {
             for (std::size_t i = p8; i < p9; ++i)
+            {
                 workerIndexes[8].addDocument(i, m_documents[i].text);
+                progress.fetch_add(1, std::memory_order_relaxed);
+
+            }
+            
+                
         });
 
-    std::jthread j10([this, &workerIndexes, &p9, &p10]()
+    std::jthread j10([this, &workerIndexes, &p9, &p10,&progress]()
         {
             for (std::size_t i = p9; i < p10; ++i)
+            {
                 workerIndexes[9].addDocument(i, m_documents[i].text);
+                progress.fetch_add(1, std::memory_order_relaxed);
+            }
+            
+                
         });
 
-    std::jthread j11([this, &workerIndexes, &p10, &p11]()
+    std::jthread j11([this, &workerIndexes, &p10, &p11,&progress]()
         {
             for (std::size_t i = p10; i < p11; ++i)
+            {
                 workerIndexes[10].addDocument(i, m_documents[i].text);
+                progress.fetch_add(1, std::memory_order_relaxed);
+
+            }
+            
+               
         });
 
-    std::jthread j12([this, &workerIndexes, &p11, &documentCount]()
+    std::jthread j12([this, &workerIndexes, &p11, &documentCount,&progress]()
         {
             for (std::size_t i = p11; i < documentCount; ++i)
+            {
                 workerIndexes[11].addDocument(i, m_documents[i].text);
+                progress.fetch_add(1, std::memory_order_relaxed);
+
+            }
+            
+                
         });
 
+    constexpr std::size_t kBarWidth = 30;
+
+    while (true)
+    {
+        const std::size_t done = progress.load(std::memory_order_relaxed);
+        const std::size_t filled = documentCount ? done * kBarWidth / documentCount : kBarWidth;
+        const std::size_t percent = documentCount ? done * 100 / documentCount : 100;
+
+        std::cout << "\r   [" << std::string(filled, '#') << std::string(kBarWidth - filled, '-') << "] "
+            << std::format("{:>3}%  {} / {}", percent, done, documentCount) << std::flush;
+
+        if (done >= documentCount)       // checked after drawing, so the 100% frame is always shown
+            break;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    std::cout << '\n';
     j1.join();
     j2.join();
     j3.join();

@@ -1,11 +1,5 @@
 #include <iostream>
-#include <string>
-
 #include "Cli.h"
-
-using std::cout;
-using std::cin;
-using std::string;
 
 int main()
 {

@@ -2,7 +2,11 @@
 
 A full-text search engine for local text files, written from scratch in modern C++20. It builds an inverted index over a folder of `.txt` documents, ranks matches with the **Okapi BM25** relevance function, and splits indexing across **12 worker threads** that each build a private index before a single-threaded merge.
 
-The project uses no third-party libraries — only the C++ standard library — and is built with MSVC in Visual Studio on Windows.
+It runs as an interactive console program: index any folder, search it, and inspect index statistics. The project uses no third-party libraries — only the C++ standard library — and is developed with MSVC in Visual Studio on Windows.
+
+![Demo: indexing the 10,000-document corpus, viewing statistics and searching](docs/demo.gif)
+
+<sub>Demo recorded from a real run on a 2-core Linux VM, so indexing is slower there than in the [benchmarks](#benchmarks).</sub>
 
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white)
 ![Compiler](https://img.shields.io/badge/compiler-MSVC%20(v145)-5C2D91)
@@ -16,6 +20,7 @@ The project uses no third-party libraries — only the C++ standard library — 
 - [Indexing pipeline](#indexing-pipeline)
 - [Search pipeline](#search-pipeline)
 - [Technology](#technology)
+- [Requirements](#requirements)
 - [Building and running](#building-and-running)
 - [Usage](#usage)
 - [Benchmarks](#benchmarks)
@@ -34,6 +39,8 @@ The project uses no third-party libraries — only the C++ standard library — 
 | BM25 ranking | Okapi BM25 with `k1 = 1.2` and `b = 0.75`, using a non-negative IDF. |
 | Keyword search | Returns every document that contains at least one query term, sorted by score. |
 | Parallel indexing | 12 `std::jthread` workers, each with its own `InvertedIndex`; no locks are needed during indexing. |
+| Progress bar | A live indexing bar driven by a shared `std::atomic` counter that the workers increment. |
+| Interactive CLI | A menu to index any folder, search it (top 10 results), and view index statistics and throughput. |
 
 ## Architecture
 
@@ -43,8 +50,9 @@ The project uses no third-party libraries — only the C++ standard library — 
 | `tokenize()` | `Tokenizer.h/.cpp` | Splits text into normalized tokens. Used for both documents and queries. |
 | `InvertedIndex` | `InvertedIndex.h/.cpp` | Stores postings and document lengths, answers term/document statistics, and merges another index into itself (`mergeFrom`). |
 | `BM25Ranker` | `BM25Ranker.h/.cpp` | Scores one document against a query using statistics from the index. |
-| `SearchEngine` | `SearchEngine.h/.cpp` | Owns the documents, the index and the ranker. Its constructor runs the indexing pipeline; `search()` runs the query pipeline. |
-| CLI | `main.cpp` | Builds a `SearchEngine` for a folder, reads queries from standard input, and prints ranked results. |
+| `SearchEngine` | `SearchEngine.h/.cpp` | Owns the documents, the index and the ranker. Its constructor runs the indexing pipeline and draws the progress bar; `search()` runs the query pipeline. |
+| `Cli` | `Cli.h/.cpp` | The interactive menu: reads input, builds or replaces the `SearchEngine` (held in a `std::optional`), and prints results and statistics. It reads and writes through injected `std::istream&`/`std::ostream&`, so it can be driven by string streams. |
+| `main` | `main.cpp` | Creates a `Cli` on `std::cin`/`std::cout` and runs it. |
 
 **Indexing** runs once, in the `SearchEngine` constructor:
 
@@ -78,11 +86,12 @@ All indexing happens in the `SearchEngine` constructor.
 
 1. **Scan.** `DocumentScanner::scan` iterates the folder with `std::filesystem::directory_iterator`, keeps regular files whose extension is `.txt`, and sorts the paths. Each file is read in full into a `std::string`. A file that cannot be opened is reported on `stderr` and skipped. A document's ID is its position in this sorted list.
 2. **Partition.** The document list is split into 12 contiguous ID ranges of `N / 12` documents (integer division). The last worker also takes the remainder, so every document is indexed exactly once even when `N` is not a multiple of 12. With the 10,000-document benchmark corpus, workers 1–11 index 833 documents each and worker 12 indexes 837.
-3. **Index in parallel.** Each `std::jthread` loops over its range and calls `addDocument` on its own `InvertedIndex`. That call tokenizes the text, records the document's token count, and increments `postings[token][documentId]`. The workers only *read* the shared document list and only *write* to their own index, so this stage needs no mutexes or atomics.
-4. **Join.** The constructor joins all 12 threads explicitly before the local indexes are used.
-5. **Merge.** On the calling thread, `mergeFrom` copies each worker's document lengths and postings into the global index. Document ID ranges never overlap, so merging is plain insertion with no conflict resolution.
+3. **Index in parallel.** Each `std::jthread` loops over its range and calls `addDocument` on its own `InvertedIndex`. That call tokenizes the text, records the document's token count (adding it to a running total), and increments `postings[token][documentId]`. The workers only *read* the shared document list and only *write* to their own index, so this stage needs no mutexes.
+4. **Report progress.** After each document, a worker increments a shared `std::atomic<std::size_t>` counter (relaxed ordering; it is only a progress count). Meanwhile the calling thread redraws the progress bar every 50 ms and stops once the counter reaches `N`, so the final 100% frame is always drawn.
+5. **Join.** The constructor joins all 12 threads explicitly before the local indexes are used.
+6. **Merge.** On the calling thread, `mergeFrom` copies each worker's document lengths and postings into the global index and adds its token total. Document ID ranges never overlap, so merging is plain insertion with no conflict resolution.
 
-Scanning, file reading and merging all run on one thread; only tokenization and posting construction run in parallel.
+Scanning, file reading and merging all run on one thread; only tokenization and posting construction run in parallel. The running token total makes the average document length used by BM25 a single division instead of a loop over every document.
 
 ## Search pipeline
 
@@ -92,7 +101,7 @@ Scanning, file reading and merging all run on one thread; only tokenization and 
 2. **Collect candidates:** the union of the posting lists of every query term. A document matches if it contains *any* query term (OR semantics).
 3. **Score** each candidate with `BM25Ranker::scorer`. Repeated query terms are counted once.
 4. **Rank** by score, highest first; equal scores are ordered by document ID.
-5. **Return** every candidate as a `SearchResult { documentId, bm25Score, filePath }`.
+5. **Return** every candidate as a `SearchResult { documentId, bm25Score, filePath }`. The CLI prints the top 10 and the number of remaining matches.
 
 The score for document $D$ and query $Q$ is
 
@@ -110,15 +119,28 @@ where $f(t, D)$ is the number of times term $t$ appears in $D$, $|D|$ is the doc
 | --- | --- |
 | Language | C++20 (`/std:c++20`), conformance mode (`/permissive-`) |
 | Compiler / IDE | MSVC, Visual Studio platform toolset **v145**, solution file `C++File_Search_Engine.slnx` |
-| Concurrency | `std::jthread`, `std::array` of per-worker `InvertedIndex` objects |
+| Concurrency | `std::jthread`, `std::array` of per-worker `InvertedIndex` objects, `std::atomic` progress counter |
 | Data structures | `std::unordered_map`, `std::unordered_set`, `std::vector` |
 | File I/O | `std::filesystem::directory_iterator`, `std::ifstream` |
+| Output and state | `std::format`, `std::optional`, `std::string_view` |
 | Timing (benchmark) | `std::chrono::steady_clock` |
 | Dependencies | None beyond the standard library |
 
+## Requirements
+
+| To | You need |
+| --- | --- |
+| Build on Windows (primary) | Visual Studio 2026 with the **Desktop development with C++** workload. The project targets platform toolset **v145**, `/std:c++20`. |
+| Build on Linux | GCC 13 or newer (Clang 18 also tested), using C++20 and `-pthread`. |
+| Run | A folder of `.txt` files to index. The 10,000-document benchmark corpus (about 100 MiB) is **not** included in the repository. |
+
+No third-party libraries, package managers or downloads are needed.
+
+Older Visual Studio versions have not been tested. With Visual Studio 2022, open the project's properties and set **Platform Toolset** to **v143**. If your Visual Studio can't open the `.slnx` solution file, open `C++File_Search_Engine/C++File_Search_Engine.vcxproj` directly. macOS has not been tested.
+
 ## Building and running
 
-**Requirements:** Windows, and Visual Studio with the *Desktop development with C++* workload and platform toolset v145 (the toolset the project is configured for). Other toolset versions have not been tested.
+### Windows (Visual Studio)
 
 1. Clone the repository:
 
@@ -127,57 +149,68 @@ where $f(t, D)$ is the number of times term $t$ appears in $D$, $|D|$ is the doc
    ```
 
 2. Open `C++File_Search_Engine.slnx` in Visual Studio.
-3. Set the folder to index. The path is hard-coded in `C++File_Search_Engine/src/main.cpp`:
+3. Select the **Release | x64** configuration and build with **Build → Build Solution** (`Ctrl+Shift+B`).
+4. Run with **Debug → Start Without Debugging** (`Ctrl+F5`). The executable is written to `x64\Release\C++File_Search_Engine.exe`.
 
-   ```cpp
-   const std::filesystem::path directoryPath =
-       R"(C:\Users\jagri\OneDrive\Desktop\SearchEngineFile)";
-   ```
+### Linux (GCC or Clang)
 
-4. Select the **Release | x64** configuration and build with **Build → Build Solution** (`Ctrl+Shift+B`).
-5. Run with **Debug → Start Without Debugging** (`Ctrl+F5`). The executable is written to `x64\Release\C++File_Search_Engine.exe`.
+From the repository root:
+
+```bash
+g++ -std=c++20 -O2 -pthread -I C++File_Search_Engine/include C++File_Search_Engine/src/*.cpp -o search-engine
+./search-engine
+```
+
+`benchmarks/Benchmark.cpp` is left out of this command; it is a separate program (see [Running the benchmark](#running-the-benchmark)).
 
 ## Usage
 
-The program indexes the folder at startup, then reads one query per line from standard input. Type `exit` to stop entering queries; results for all queries are then printed in order.
+The program starts at a menu:
 
 ```text
-Enter queries (type 'exit' to finish):
-mutex deadlock
-Belstavi
-zzznotaword
-exit
+   +----------------------------------+
+   |  [1]  Search documents           |
+   |  [2]  Index a folder             |
+   |  [3]  Show index statistics      |
+   |  [4]  Exit                       |
+   +----------------------------------+
+
+   search-engine>
 ```
 
-Output on the benchmark corpus, abridged (the first query matches 3,673 documents and all of them are printed):
+| Option | What it does |
+| --- | --- |
+| **[2] Index a folder** | Asks for a folder and indexes every `.txt` file directly inside it, showing a live progress bar and the indexing time. Pressing Enter reuses the last folder; re-indexing the loaded folder asks for confirmation first. An invalid path prints `Not a folder` instead of crashing. |
+| **[1] Search documents** | Asks for queries, one per line, and prints the top 10 results with their BM25 scores and how many more matched. An empty line returns to the menu. Requires an index. |
+| **[3] Show index statistics** | Shows the folder, document count, corpus size, unique terms, total tokens, average document length, indexing time, documents/s and MiB/s. |
+| **[4] Exit** | Quits. The program also exits cleanly when input ends. |
+
+Example session on the benchmark corpus:
 
 ```text
-Query: "mutex deadlock"
-File: document_08340.txt
-Document ID: 8340
-BM25 Score: 6.18678
--------------------------
-File: document_05121.txt
-Document ID: 5121
-BM25 Score: 6.10692
--------------------------
-File: document_02246.txt
-Document ID: 2246
-BM25 Score: 6.09374
--------------------------
-...
+   search-engine> 2
 
-Query: "Belstavi"
-File: document_00000.txt
-Document ID: 0
-BM25 Score: 16.224
--------------------------
+   Folder to index: C:\SearchEngineBenchmarkCorpus
+   Indexing C:\SearchEngineBenchmarkCorpus ...
+   [##############################] 100%  10000 / 10000
+   Indexed 10000 documents in 2.31 s.
 
-Query: "zzznotaword"
-No results found.
+   search-engine> 1
+
+   Enter a query (empty line returns to the menu)
+   query> mutex deadlock
+
+    1.  document_08340.txt        6.1868
+    2.  document_05121.txt        6.1069
+    3.  document_02246.txt        6.0937
+   ...
+   10.  document_01878.txt        5.8508
+       ...and 3663 more
 ```
 
-Queries are case-insensitive and punctuation is ignored, so `Mutex, DEADLOCK!` is equivalent to `mutex deadlock`. A blank query returns no results.
+The indexing time above is illustrative; it depends on the machine and on whether the files are already in the OS cache.
+
+Queries are case-insensitive and punctuation is ignored, so `Mutex, DEADLOCK!` is equivalent to `mutex deadlock`. A document matches if it contains any query term.
 
 ## Benchmarks
 
@@ -194,6 +227,8 @@ Queries are case-insensitive and punctuation is ignored, so `Mutex, DEADLOCK!` i
 | Cache state | Likely warm: the corpus had been read recently, so files were probably served from the OS file cache. Cold-cache performance was not measured. |
 
 Each worker count was measured with the commit that introduced it. Every multi-worker version uses the same design (contiguous ranges, per-worker indexes, merge after join); only the number of workers differs. The current code is the 12-worker version.
+
+These runs were recorded before the progress bar and the interactive menu were added. The current constructor also updates an atomic counter per document and redraws the bar every 50 ms, so its timings have not been re-measured yet.
 
 ### Results
 
@@ -227,7 +262,7 @@ Query latency, memory usage, cold-cache indexing, and other machines or corpora 
 
 1. In Solution Explorer, open the properties of `src\main.cpp` and set **Excluded From Build** to **Yes** for Release | x64.
 2. In `benchmarks/Benchmark.cpp`, remove the `/*` and `*/` that enclose the file, and set `directoryPath` to your corpus folder.
-3. Build **Release | x64** and run it with `Ctrl+F5`. Each run prints the document count, corpus size, documents/s, MiB/s and indexing time.
+3. Build **Release | x64** and run it with `Ctrl+F5`. Each run prints the document count, corpus size, documents/s, MiB/s and indexing time. The progress bar is drawn during these runs too.
 
 ## Repository structure
 
@@ -236,22 +271,26 @@ cpp-file-search-engine/
 ├── C++File_Search_Engine.slnx              Visual Studio solution
 ├── LICENSE
 ├── README.md
+├── docs/
+│   └── demo.gif                            Demo recording used in this README
 └── C++File_Search_Engine/
     ├── C++File_Search_Engine.vcxproj       Project: C++20, x64/Win32, Debug/Release
     ├── C++File_Search_Engine.vcxproj.filters
     ├── include/
     │   ├── BM25Ranker.h
+    │   ├── Cli.h
     │   ├── DocumentScanner.h
     │   ├── InvertedIndex.h
     │   ├── SearchEngine.h
     │   └── Tokenizer.h
     ├── src/
     │   ├── BM25Ranker.cpp
+    │   ├── Cli.cpp                         Interactive menu
     │   ├── DocumentScanner.cpp
     │   ├── InvertedIndex.cpp
-    │   ├── SearchEngine.cpp                Indexing (12 workers) and search
+    │   ├── SearchEngine.cpp                Indexing (12 workers), progress bar and search
     │   ├── Tokenizer.cpp
-    │   └── main.cpp                        Interactive CLI
+    │   └── main.cpp                        Creates the Cli and runs it
     └── benchmarks/
         ├── Benchmark.cpp                   Indexing-time benchmark (commented out by default)
         ├── results.csv                     All recorded runs
@@ -262,11 +301,11 @@ cpp-file-search-engine/
 
 ## Limitations
 
-- **Hard-coded settings.** The corpus folder is set in source (`main.cpp`, `Benchmark.cpp`), and the worker count is fixed at 12 by twelve explicitly written threads.
+- **Fixed worker count.** Indexing always uses 12 explicitly written threads, regardless of the machine.
 - **Tokenizer is ASCII-only.** Bytes outside ASCII split words, and there is no stemming or stop-word removal.
 - **Only `.txt` files in one folder are indexed.** Subfolders are not searched.
-- **All matches are printed.** There is no top-*k* limit, so a common word can print thousands of results.
-- **Search is single-threaded**, and the average document length is recomputed over all documents for every term scored rather than cached.
+- **Search is single-threaded,** and it scores every document that contains any query term before keeping the top 10.
+- **The progress bar is printed by `SearchEngine` directly to `std::cout`,** not through the `Cli`'s streams, so it also appears in `Benchmark.cpp` runs and in redirected output.
 - **Memory.** The full text of every document stays in memory after indexing.
 - **Errors.** A file that cannot be opened is skipped with a message that does not name the file. Worker threads have no exception handling.
 
@@ -278,6 +317,9 @@ cpp-file-search-engine/
 - [x] Parallel indexing with 12 workers using per-worker indexes and a merge step
 - [x] Repeated-run benchmarks for 1, 2, 4, 8 and 12 workers, recorded in `results.csv` with screenshots
 - [x] Documentation of the architecture, pipelines, build steps and benchmark method (this README)
+- [x] Average document length kept as a running total instead of recomputed for every scored term
+- [x] Interactive menu: index any folder, search with top-10 results, index statistics
+- [x] Live indexing progress bar using an atomic counter
 
 ### Planned
 

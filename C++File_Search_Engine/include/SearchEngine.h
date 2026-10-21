@@ -17,7 +17,7 @@ struct SearchResult
 	double bm25Score;
 	std::filesystem::path filePath;
 
-	friend std::ostream& operator<<(std::ostream& os, const SearchResult& result)
+	friend std::ostream& operator<<(std::ostream& os, const SearchResult& result)//not used
 	{
 		return os << "File: " << result.filePath.filename().string()
 			<< "\nDocument ID: " << result.documentId
