@@ -63,9 +63,6 @@ SearchEngine::SearchEngine(const std::filesystem::path& directoryPath)
 
     for (auto& workerIndex : workerIndexes)
         m_index.mergeFrom(workerIndex);
-
-    for ( auto& workerIndex : workerIndexes)
-        m_index.mergeFrom(workerIndex);
 }
 
 std::vector<SearchResult> SearchEngine::search(const std::string& query) const
