@@ -17,7 +17,9 @@ SearchEngine::SearchEngine(const std::filesystem::path& directoryPath)
     DocumentScanner scanner;
     m_documents = scanner.scan(directoryPath);
 
-    constexpr std::size_t kWorkerCount = 12;
+       
+    const unsigned int hardwareThreads = std::thread::hardware_concurrency();   // 0 if unknown
+    const std::size_t kWorkerCount = hardwareThreads > 1 ? hardwareThreads - 1 : 1;//Named kWorkerCount (not compile time)
     const std::size_t documentCount = m_documents.size();
     const std::size_t documentsPerWorker = documentCount / kWorkerCount;
 
@@ -42,7 +44,7 @@ SearchEngine::SearchEngine(const std::filesystem::path& directoryPath)
 
     }
     constexpr std::size_t kBarWidth = 30;
-
+    std::cout << std::format("   Using {} worker threads\n", kWorkerCount);
     while (true)
     {
         const std::size_t done = progress.load(std::memory_order_relaxed);
