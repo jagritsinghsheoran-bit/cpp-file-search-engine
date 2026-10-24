@@ -7,6 +7,8 @@
 #include "Tokenizer.h"
 #include "SearchEngine.h"
 #include <atomic>
+#include <format>
+#include <string>
 
 
 

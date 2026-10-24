@@ -1,6 +1,6 @@
 # C++ File Search Engine
 
-A full-text search engine for local text files, written from scratch in modern C++20. It builds an inverted index over a folder of `.txt` documents, ranks matches with the **Okapi BM25** relevance function, and splits indexing across **12 worker threads** that each build a private index before a single-threaded merge.
+A full-text search engine for local text files, written from scratch in modern C++20. It builds an inverted index over a folder of `.txt` documents, ranks matches with the **Okapi BM25** relevance function, and splits indexing across **one worker thread per hardware thread, minus one** (11 on a 12-thread CPU). Each worker builds a private index before a single-threaded merge.
 
 It runs as an interactive console program: index any folder, search it, and inspect index statistics. The project uses no third-party libraries — only the C++ standard library — and is developed with MSVC in Visual Studio on Windows.
 
@@ -38,7 +38,7 @@ It runs as an interactive console program: index any folder, search it, and insp
 | Inverted index | `term → {document ID → term frequency}`, plus the token length of every document. |
 | BM25 ranking | Okapi BM25 with `k1 = 1.2` and `b = 0.75`, using a non-negative IDF. |
 | Keyword search | Returns every document that contains at least one query term, sorted by score. |
-| Parallel indexing | 12 `std::jthread` workers, created in a loop and each with its own `InvertedIndex`; no locks are needed during indexing. The worker count is a single constant. |
+| Parallel indexing | `std::jthread` workers created in a loop, each with its own `InvertedIndex`; no locks are needed during indexing. The worker count comes from `std::thread::hardware_concurrency()` at runtime. |
 | Progress bar | A live indexing bar driven by a shared `std::atomic` counter that the workers increment. |
 | Interactive CLI | A menu to index any folder, search it (top 10 results), and view index statistics and throughput. |
 
@@ -59,11 +59,11 @@ It runs as an interactive console program: index any folder, search it, and insp
 ```mermaid
 flowchart TB
     A["Corpus folder<br/>*.txt files"] --> B["DocumentScanner::scan<br/>sort paths, read every file,<br/>ID = position in sorted order"]
-    B --> P{{"Split IDs into 12 ranges<br/>N / 12 each; the last<br/>takes the remainder"}}
+    B --> P{{"Split IDs into W ranges<br/>W = hardware threads - 1<br/>N / W each; the last<br/>takes the remainder"}}
     P --> W1["Worker 1<br/>tokenize + addDocument<br/>into its own InvertedIndex"]
-    P --> W2["Workers 2 to 11<br/>same, one index each"]
-    P --> W12["Worker 12<br/>tokenize + addDocument<br/>into its own InvertedIndex"]
-    W1 --> M["Join all 12 threads,<br/>then mergeFrom<br/>on one thread"]
+    P --> W2["Workers 2 to W-1<br/>same, one index each"]
+    P --> W12["Worker W<br/>tokenize + addDocument<br/>into its own InvertedIndex"]
+    W1 --> M["Join all W threads,<br/>then mergeFrom<br/>on one thread"]
     W2 --> M
     W12 --> M
     M --> G[("Global InvertedIndex<br/>term → doc ID → frequency<br/>doc ID → length")]
@@ -85,7 +85,7 @@ flowchart TB
 All indexing happens in the `SearchEngine` constructor.
 
 1. **Scan.** `DocumentScanner::scan` iterates the folder with `std::filesystem::directory_iterator`, keeps regular files whose extension is `.txt`, and sorts the paths. Each file is read in full into a `std::string`. A file that cannot be opened is reported on `stderr` and skipped. A document's ID is its position in this sorted list.
-2. **Partition.** The document list is split into `kWorkerCount` (12) contiguous ID ranges of `N / 12` documents (integer division). The last worker also takes the remainder, so every document is indexed exactly once even when `N` is not a multiple of 12. With the 10,000-document benchmark corpus, workers 1–11 index 833 documents each and worker 12 indexes 837.
+2. **Choose the worker count and partition.** The worker count `W` is `std::thread::hardware_concurrency() - 1`, leaving one hardware thread for the main thread, which draws the progress bar. If the function returns 0 (unknown) or 1, `W` is 1, so a worker count of zero, or an unsigned wrap-around, can't happen. The constructor prints `Using W worker threads`. The document list is then split into `W` contiguous ID ranges of `N / W` documents (integer division), and the last worker also takes the remainder, so every document is indexed exactly once even when `N` is not a multiple of `W`. On a 12-thread CPU with the 10,000-document benchmark corpus, `W` is 11: workers 1–10 index 909 documents each and worker 11 indexes 910.
 3. **Index in parallel.** A loop starts one `std::jthread` per range and stores it in a `std::vector<std::jthread>`. Each thread's lambda captures its worker number and its `begin`/`end` range **by value**, and the shared document list, worker indexes and progress counter by reference. Each thread loops over its range and calls `addDocument` on its own entry of a `std::vector<InvertedIndex>`. That call tokenizes the text, records the document's token count (adding it to a running total), and increments `postings[token][documentId]`. The workers only *read* the shared document list and only *write* to their own index, so this stage needs no mutexes.
 4. **Report progress.** After each document, a worker increments a shared `std::atomic<std::size_t>` counter (relaxed ordering; it is only a progress count). Meanwhile the calling thread redraws the progress bar every 50 ms and stops once the counter reaches `N`, so the final 100% frame is always drawn.
 5. **Join.** The constructor joins every thread in a loop before the local indexes are merged. `std::jthread` would also join automatically when the vector is destroyed, but that happens at the end of the constructor, after the merge, so the explicit join is required.
@@ -192,6 +192,7 @@ Example session on the benchmark corpus:
 
    Folder to index: C:\SearchEngineBenchmarkCorpus
    Indexing C:\SearchEngineBenchmarkCorpus ...
+   Using 11 worker threads
    [##############################] 100%  10000 / 10000
    Indexed 10000 documents in 2.31 s.
 
@@ -226,9 +227,9 @@ Queries are case-insensitive and punctuation is ignored, so `Mutex, DEADLOCK!` i
 | Repetitions | 5 runs per configuration; the median is reported |
 | Cache state | Likely warm: the corpus had been read recently, so files were probably served from the OS file cache. Cold-cache performance was not measured. |
 
-Each worker count was measured with the commit that introduced it. Every multi-worker version uses the same design (contiguous ranges, per-worker indexes, merge after join); only the number of workers differs. The current code is the 12-worker version.
+Each worker count was measured with the commit that introduced it, when the count was fixed in the code. Every multi-worker version uses the same design (contiguous ranges, per-worker indexes, merge after join); only the number of workers differs.
 
-These runs were recorded before the progress bar, the interactive menu and the loop-based thread setup were added. The thread loop creates the same 12 ranges as before, but the current constructor also updates an atomic counter per document and redraws the bar every 50 ms, so its timings have not been re-measured yet.
+These runs were recorded before the progress bar, the interactive menu and the runtime worker count were added. The current code uses `hardware_concurrency() - 1` workers, which is **11** on this CPU, a count not in the table. It also updates an atomic counter per document and redraws the progress bar every 50 ms. Its timings have not been re-measured yet.
 
 ### Results
 
@@ -238,7 +239,7 @@ These runs were recorded before the progress bar, the interactive menu and the l
 | 2 | 3.1880 | 3.1608 – 3.2399 | 31.37 | 1.02× |
 | 4 | 2.6227 | 2.6205 – 2.7626 | 38.13 | 1.24× |
 | 8 | 2.3858 | 2.3575 – 2.4132 | 41.92 | 1.36× |
-| **12 (current)** | **2.2973** | **2.2464 – 2.3174** | **43.53** | **1.41×** |
+| **12** | **2.2973** | **2.2464 – 2.3174** | **43.53** | **1.41×** |
 
 Speedup is the sequential median divided by the configuration's median. Every individual run is listed in [`benchmarks/results.csv`](C++File_Search_Engine/benchmarks/results.csv), with a console screenshot of each run in [`benchmarks/screenshots`](C++File_Search_Engine/benchmarks/screenshots) (one folder per configuration, `run1.png`–`run5.png` matching the CSV run numbers).
 
@@ -288,7 +289,7 @@ cpp-file-search-engine/
     │   ├── Cli.cpp                         Interactive menu
     │   ├── DocumentScanner.cpp
     │   ├── InvertedIndex.cpp
-    │   ├── SearchEngine.cpp                Indexing (12 workers), progress bar and search
+    │   ├── SearchEngine.cpp                Parallel indexing, progress bar and search
     │   ├── Tokenizer.cpp
     │   └── main.cpp                        Creates the Cli and runs it
     └── benchmarks/
@@ -301,7 +302,7 @@ cpp-file-search-engine/
 
 ## Limitations
 
-- **Fixed worker count.** Indexing always uses 12 workers (the `kWorkerCount` constant), regardless of the machine; it is not yet derived from `std::thread::hardware_concurrency()`.
+- **Worker count is not configurable.** It is always `hardware_concurrency() - 1`, and can't be overridden from the menu or the command line. Whether leaving one thread free is faster than using all of them hasn't been measured.
 - **Tokenizer is ASCII-only.** Bytes outside ASCII split words, and there is no stemming or stop-word removal.
 - **Only `.txt` files in one folder are indexed.** Subfolders are not searched.
 - **Search is single-threaded,** and it scores every document that contains any query term before keeping the top 10.
@@ -320,12 +321,13 @@ cpp-file-search-engine/
 - [x] Average document length kept as a running total instead of recomputed for every scored term
 - [x] Interactive menu: index any folder, search with top-10 results, index statistics
 - [x] Live indexing progress bar using an atomic counter
-- [x] Worker threads created in a loop instead of 12 hand-written threads; one constant sets the worker count
+- [x] Worker threads created in a loop instead of 12 hand-written threads
+- [x] Worker count taken from `std::thread::hardware_concurrency()` (minus one, at least one) instead of a fixed 12
 
 ### Planned
 
 - [ ] **Automated tests.** Cover search, BM25 scoring, empty queries, missing terms, and several small document collections.
-- [ ] **Validate parallel indexing.** Add a test that the 12-worker index produces the same search results as a sequential index, including document counts that do not divide evenly by 12.
+- [ ] **Validate parallel indexing.** Add a test that the parallel index produces the same search results as a sequential index, including document counts that do not divide evenly by the worker count.
 - [ ] **Phrase search.** Support quoted queries such as `"machine learning"`. This requires storing word positions in the postings, which currently hold only term counts.
 - [ ] **Index persistence.** Save the built index to disk and load it on the next run instead of re-indexing every document.
 
